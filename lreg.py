@@ -3,56 +3,87 @@ import pandas as pd
 import numpy as np 
 import altair as alt
 
-from utils import make_chart
+from utils import *
+import SessionState
 
-XMIN = 1
-XMAX = 2
+#session = SessionState.get(run_id=0)
+###################################################################################
+### LOAD & PREPARE DATA
+###################################################################################
+df = simulate_regression_data()
 
-@st.cache
-def make_data(X_sim,n=10):
-    
-    y = 100 + np.log2(X_sim)*20 + np.sin(5*X_sim) + np.random.random(n)*5*np.random.random()#*1000
-    df = pd.DataFrame({"x":X_sim, "y":y})
-    return df
-
-
-st.markdown(f"""
-### Problem 1:
-### Problem 2: <a href='#Problem1'> [hier] </a>
-
-""", unsafe_allow_html=True)
+###################################################################################
+### SIDEBAR VIEW
+###################################################################################
+st.sidebar.header("Lineare Regression")
+b0 = st.sidebar.slider(f"Achsenabschnitt (b0)", -10.0,10.0,0.0,0.1)
+w1 = st.sidebar.slider("Steigung (w1)", -10.0,10.0,0.0,0.1)
+show_deltas = st.sidebar.checkbox("Detas anzeigen?", False)
 
 
 
-st.markdown("`Graph 1: Umsatz vs. Werbebudget`")
-n = 10
-X_sim = np.linspace(1,20,n)
-b0 = st.sidebar.slider("b0",50,110,0)
-b1 = st.sidebar.slider("w1",0,10,0)
-show_deltas = st.sidebar.checkbox("Detlas?")
 
-yhat = b0 + b1*X_sim
-print(yhat)
+###################################################################################
+### PAGE VIEW
+###################################################################################
+st.markdown("""
+# Fallstudie 1  
+Ziel der Fallstudie ist anhand eines interaktiven und visualisierten Beispiels die Grundprinzipien
+des Maschinellem Lernen zu erläutern und insbesondere folgende Frage zu beantworten:  
+> **Frage:** Wie lernt eine Maschine bzw. ein Computer?  
 
-df = (make_data(X_sim,int(n))
-      .assign(yhat=yhat)
-    )
+---  
+# Absatzprognose der Fashion GmbH
+
+# Ausgangslage  
+[Einfügen - Text zur Fallstudie]
+""")
+st.markdown("""#### Daten:""")
+table = st.empty()
+#st.table(df_to_table(df))
 
 
-a,b,c,d = make_chart(df)
+st.markdown("# Analyse")
+st.markdown("""## Absatz vs. Werbeausgaben:""")
+show_vlines = False
 if show_deltas:
-    chart = a + b + c + d
+    show_vlines = True
 else:
-    chart = a + b 
+    show_vlines = False
 
-chart = chart.properties(
-                width=600
-            ).configure_view(
-                strokeOpacity=0
-             ).configure_axis(
-                 grid=False
-             ).interactive()
+df = update_df(b0,w1,df)
+table.table(df_to_table(df)) # Input data into table "placeholder"
+
+chart = chart_regression(b0,w1,df, show_vlines=show_vlines)
+st.altair_chart(chart)
+color = "green"
+st.success(f'''
+Schätzung = **{b0}** + **{w1}** x Werbeaufwand
+''')#,unsafe_allow_html=True)
+
+
+st.markdown("""## Analyse des Schätzfehlers""")
+chart1 = chart_w1_loss(b0,w1,df)
+chart2 = chart_b0_loss(b0,w1,df)
+chart = alt.hconcat(chart1.properties(width=350), chart2.properties(width=350))
+bar = chart_yminushat(df)
+chart_total = alt.vconcat(chart, bar.properties(width=750))
+st.altair_chart(chart_total)
+
+
+st.markdown("""## Gradient descent""")
+#calc_gradient = st.checkbox("Schätze Parameter via Gradient Descent")
+
+#if calc_gradient:
+epochs = st.number_input("Anzahl der Iterationen",min_value=1,max_value=1000, step=10)
+solution, losses, wses = gradient_descent(0,0,df, lr=0.01, epochs=1001)
+chart = chart_loss_by_epochs(losses[:epochs]) # Calcuation performed at "gradient_descent"; only number of epochs shown changed
 st.altair_chart(chart)
 
-st.latex(f"Gleichung lautet f(x) = {b0} + {b1} Werbung")
+chart = chart_regression_gd(df,wses[epochs])
+
+st.altair_chart(chart)
+st.success(f'''
+    Schätzung = **{wses[epochs][0]}** + **{wses[epochs][1]}** x Werbeaufwand
+''')#,unsafe_allow_html=True)
 
