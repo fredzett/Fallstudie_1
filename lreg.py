@@ -4,7 +4,6 @@ import numpy as np
 import altair as alt
 
 from utils import *
-import SessionState
 
 #session = SessionState.get(run_id=0)
 ###################################################################################
